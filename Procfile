@@ -1,0 +1,1 @@
+web: gunicorn samia_server:app
