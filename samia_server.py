@@ -7,6 +7,8 @@ latest_command = None
 latest_question = None
 latest_answer = None
 
+SECRET_TOKEN = "samia_secret_123"
+
 @app.route("/")
 def home():
     return {"message": "SAMIA server running"}
@@ -43,9 +45,15 @@ def get_answer():
     global latest_answer
     return {"answer": latest_answer}
 
+def check_token(req):
+    token = req.headers.get("Authorization")
+    return token == SECRET_TOKEN
+
 # 📩 envoyer commande depuis téléphone
 @app.route("/command", methods=["POST"])
 def command():
+    if not check_token(request):
+        return {"error": "unauthorized"}
     global latest_command
 
     data = request.json
