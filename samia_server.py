@@ -1,73 +1,89 @@
 from flask import Flask, request, jsonify
+import os
 
 app = Flask(__name__)
 
-# 🔥 mémoire simple
-latest_command = None
-latest_question = None
-latest_answer = None
+AUTHORIZED_VOICE = "masmm_voice.wav"
 
-SECRET_TOKEN = "samia_secret_123"
+# 🔥 STOCKAGE TEMPORAIRE (RAM)
+question_store = {"question": None}
+answer_store = {"answer": None}
+command_store = {"command": None}
+
+def verify_voice(voice_file):
+    return True
 
 @app.route("/")
 def home():
     return {"message": "SAMIA server running"}
 
-# 📩 recevoir question depuis téléphone
+@app.route("/samia")
+def samia():
+    return {"name": "SAMIA_PC", "status": "online"}
+
+# =========================
+# 🔥 FLUTTER → QUESTION
+# =========================
 @app.route("/ask", methods=["POST"])
 def ask():
-    global latest_question
-
     data = request.json
-    latest_question = data.get("question")
+    question = data.get("question")
 
-    return {"status": "processing"}
+    question_store["question"] = question
 
-# 📥 PC récupère question
-@app.route("/get_question")
+    return {"status": "ok", "message": "Question reçue"}
+
+# =========================
+# 🔥 AGENT → GET QUESTION
+# =========================
+@app.route("/get_question", methods=["GET"])
 def get_question():
-    global latest_question
-    return {"question": latest_question}
+    q = question_store["question"]
+    question_store["question"] = None
+    return {"question": q}
 
-# 📤 PC envoie réponse
+# =========================
+# 🔥 AGENT → SEND ANSWER
+# =========================
 @app.route("/send_answer", methods=["POST"])
 def send_answer():
-    global latest_answer
-
     data = request.json
-    latest_answer = data.get("answer")
+    answer_store["answer"] = data.get("answer")
+    return {"status": "ok"}
+
+# =========================
+# 🔥 FLUTTER → GET ANSWER
+# =========================
+@app.route("/get_answer", methods=["GET"])
+def get_answer():
+    a = answer_store["answer"]
+    answer_store["answer"] = None
+    return {"answer": a}
+
+# =========================
+# 🔥 COMMANDE → ENVOYER
+# =========================
+@app.route("/command", methods=["POST"])
+def command():
+    data = request.json
+    cmd = data.get("command")
+
+    command_store["command"] = cmd
 
     return {"status": "ok"}
 
-# 📲 téléphone récupère réponse
-@app.route("/get_answer")
-def get_answer():
-    global latest_answer
-    return {"answer": latest_answer}
-
-def check_token(req):
-    token = req.headers.get("Authorization")
-    return token == SECRET_TOKEN
-
-# 📩 envoyer commande depuis téléphone
-@app.route("/command", methods=["POST"])
-def command():
-    if not check_token(request):
-        return {"error": "unauthorized"}
-    global latest_command
-
-    data = request.json
-    latest_command = data.get("command")
-
-    return {"status": "sent"}
-
-# 💻 PC récupère commande
-@app.route("/get_command")
+# =========================
+# 🔥 AGENT → GET COMMAND
+# =========================
+@app.route("/get_command", methods=["GET"])
 def get_command():
-    global latest_command
-    return {"command": latest_command}
+    cmd = command_store["command"]
+    command_store["command"] = None
+    return {"command": cmd}
 
+# =========================
+# 🔥 RUN
+# =========================
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
