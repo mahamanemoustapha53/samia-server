@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 AUTHORIZED_VOICE = "masmm_voice.wav"
 
-SECRET_TOKEN = "samia_secret_123"
+SECRET_TOKEN = "MASMM_SUPER_SECRET_2006"
 
 def check_token(req):
     token = req.headers.get("Authorization")
@@ -111,6 +111,32 @@ def get_command():
     cmd = command_store["command"]
     command_store["command"] = None
     return {"command": cmd}
+
+# =========================
+# 🔥 NOUVELLE ROUTE WEB CHAT (IMPORTANT)
+# =========================
+@app.route("/chat", methods=["POST"])
+def chat():
+    if not check_token(request):
+        return {"status": "error", "message": "Unauthorized"}, 403
+
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", "").lower()
+
+    # 🔥 COMMANDES INTELLIGENTES
+    if "ouvre chrome" in message or "open chrome" in message:
+        return {"status": "ok", "type": "command", "command": "open_chrome"}
+
+    if "redémarre" in message or "restart pc" in message:
+        return {"status": "ok", "type": "command", "command": "restart"}
+
+    if "éteins" in message or "shutdown" in message:
+        return {"status": "ok", "type": "command", "command": "shutdown"}
+
+    # 🔥 SINON IA (simulation pour l’instant)
+    response = f"SAMIA: {message}"
+
+    return {"status": "ok", "type": "text", "response": response}
 
 # =========================
 # 🔥 RUN

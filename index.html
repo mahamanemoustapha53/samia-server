@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>SAMIA</title>
+<style>
+body {
+    font-family: Arial;
+    background: #0f172a;
+    color: white;
+}
+
+#chat {
+    max-width: 600px;
+    margin: auto;
+    padding: 20px;
+}
+
+.message {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.user {
+    background: #2563eb;
+    text-align: right;
+}
+
+.bot {
+    background: #1e293b;
+    text-align: left;
+}
+
+input {
+    width: 80%;
+    padding: 10px;
+}
+
+button {
+    padding: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="chat"></div>
+
+<div style="text-align:center;">
+    <input id="input" placeholder="Écris ton message...">
+    <button onclick="sendMessage()">Envoyer</button>
+</div>
+
+<script>
+const API_URL = "https://samia-server.onrender.com/chat";
+const TOKEN = "MASMM_SUPER_SECRET_2026";
+
+function addMessage(text, className) {
+    const chat = document.getElementById("chat");
+    const div = document.createElement("div");
+    div.className = "message " + className;
+    div.innerText = text;
+    chat.appendChild(div);
+}
+
+async function sendMessage() {
+    const input = document.getElementById("input");
+    const message = input.value;
+
+    if (!message) return;
+
+    addMessage(message, "user");
+
+    input.value = "";
+
+    addMessage("SAMIA réfléchit...", "bot");
+
+    const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": TOKEN
+        },
+        body: JSON.stringify({ message })
+    });
+
+    const data = await response.json();
+
+    document.querySelectorAll(".bot").pop().innerText = data.response;
+}
+</script>
+
+</body>
+</html>
