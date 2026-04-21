@@ -1,11 +1,15 @@
 from flask import Flask, request, jsonify
 import os
+from flask_cors import CORS
 
+CORS(app)
 app = Flask(__name__)
 
 AUTHORIZED_VOICE = "masmm_voice.wav"
 
 SECRET_TOKEN = "MASMM_SUPER_SECRET_2006"
+
+screen_store = {"image": None}
 
 def check_token(req):
     token = req.headers.get("Authorization")
@@ -26,6 +30,23 @@ def home():
 @app.route("/samia")
 def samia():
     return {"name": "SAMIA_PC", "status": "online"}
+
+@app.route("/screen", methods=["POST"])
+def receive_screen():
+    if not check_token(request):
+        return {"status": "error"}, 403
+
+    data = request.get_json()
+    screen_store["image"] = data.get("image")
+
+    return {"status": "ok"}
+
+@app.route("/get_screen", methods=["GET"])
+def get_screen():
+    if not check_token(request):
+        return {"status": "error"}, 403
+
+    return {"image": screen_store["image"]}
 
 # =========================
 # 🔥 FLUTTER → QUESTION
@@ -123,20 +144,29 @@ def chat():
     data = request.get_json(silent=True) or {}
     message = data.get("message", "").lower()
 
-    # 🔥 COMMANDES INTELLIGENTES
+    # 🔥 COMMANDES
     if "ouvre chrome" in message or "open chrome" in message:
         return {"status": "ok", "type": "command", "command": "open_chrome"}
 
     if "redémarre" in message or "restart pc" in message:
         return {"status": "ok", "type": "command", "command": "restart"}
 
+    if "redémarre" in message or "open OBS" in message:
+        return {"status": "ok", "type": "command", "command": "open_OBS"}
+
     if "éteins" in message or "shutdown" in message:
         return {"status": "ok", "type": "command", "command": "shutdown"}
 
-    # 🔥 SINON IA (simulation pour l’instant)
-    response = f"SAMIA: {message}"
+    if "écran" in message:
+        return {"type": "screen", "action": "start"}
 
-    return {"status": "ok", "type": "text", "response": response}
+    if "ferme l'écran" in message:
+        return {"type": "screen", "action": "stop"}
+
+    # 🔥 ENVOYER QUESTION À L'AGENT (OLLAMA)
+    question_store["question"] = message
+
+    return {"status": "ok", "type": "processing"}
 
 # =========================
 # 🔥 RUN

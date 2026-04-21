@@ -3,8 +3,21 @@ import time
 import socket
 import sys
 import os
+import mss
+import cv2
+import numpy as np
+import base64
 
 SERVER = "https://samia-server.onrender.com"
+
+ALLOWED_COMMANDS = [
+    "shutdown",
+    "restart",
+    "open_chrome",
+    "open_notepad",
+    "bluetooth_on",
+    "wifi_hotspot"
+]
 
 def is_internet_available():
     try:
@@ -36,9 +49,23 @@ def wait_for_server():
             print("⏳ Serveur en attente (Render en veille...)")
             time.sleep(5)
 
+def capture_screen():
+    with mss.mss() as sct:
+        screen = sct.grab(sct.monitors[1])
+        img = np.array(screen)
+
+        _, buffer = cv2.imencode(".jpg", img)
+        jpg_as_text = base64.b64encode(buffer).decode("utf-8")
+
+        return jpg_as_text
+
 def safe_request(endpoint):
     try:
-        response = requests.get(f"{SERVER}/{endpoint}", timeout=10)
+        response = requests.get(
+            f"{SERVER}/{endpoint}",
+            headers={"Authorization": "MASMM_SUPER_SECRET_2006"},
+            timeout=10
+        )
         return response.json()
     except Exception as e:
         print(f"❌ Erreur réseau: {e}")
@@ -54,6 +81,32 @@ def execute_command(cmd):
     elif cmd == "open_chrome":
         os.system("start chrome")
 
+    elif cmd == "open_OBS":
+        os.system('"C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe"')
+
+    elif cmd == "open_notepad":
+        os.system("start notepad")
+
+    elif cmd == "bluetooth_on":
+        os.system("powershell Start-Service bthserv")
+
+    elif cmd == "wifi_hotspot":
+        os.system("netsh wlan start hostednetwork")
+
+def ask_ollama(prompt):
+    try:
+        res = requests.post("http://localhost:11434/api/generate", json={
+            "model": "qwen2.5:0.5b",
+            "prompt": prompt,
+            "stream": False
+        }, timeout=60)
+
+        data = res.json()
+        return data.get("response", "Pas de réponse")
+
+    except Exception as e:
+        return f"Erreur Ollama: {e}"
+
 def main():
     wait_for_server()
 
@@ -62,17 +115,53 @@ def main():
     while True:
         try:
             question = safe_request("get_question")
+            screen_active = False
             command = safe_request("get_command")
+            screen_data = capture_screen()
 
-            if question:
-                print("📩 Question reçue:", question)
+            requests.post(f"{SERVER}/screen", json={
+                "image": screen_data
+            }, headers={
+                "Authorization": "MASMM_SUPER_SECRET_2006"
+            })
+
+            if question and question.get("question"):
+                q = question["question"]
+                print("📩 Question reçue:", q)
+
+                # 🔥 appeler Ollama
+                answer = ask_ollama(q)
+
+                print("🤖 Réponse:", answer)
+
+                # 🔥 envoyer réponse au serveur
+                requests.post(f"{SERVER}/send_answer", json={
+                    "answer": answer
+                }, headers={
+                    "Authorization": "MASMM_SUPER_SECRET_2006"
+                })
 
             if command and command.get("command"):
                 cmd = command["command"]
-                print("⚙️ Exécution:", cmd)
-                execute_command(cmd)
+                if cmd == "screen_on":
+                    screen_active = True
+
+                elif cmd == "screen_off":
+                    screen_active = False
+
+                else:
+                    execute_command(cmd)
 
             time.sleep(2)
+
+            if screen_active:
+                screen_data = capture_screen()
+
+                requests.post(f"{SERVER}/screen", json={
+                    "image": screen_data
+                }, headers={
+                    "Authorization": "MASMM_SUPER_SECRET_2006"
+                })
 
         except Exception as e:
             print(f"❌ ERREUR CRITIQUE: {e}")
