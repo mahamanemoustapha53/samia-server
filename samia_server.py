@@ -113,7 +113,17 @@ def command():
     if not cmd:
         return {"status": "error", "message": "Commande vide"}
 
-    ALLOWED_COMMANDS = ["shutdown", "restart", "open_chrome"]
+    ALLOWED_COMMANDS = [
+        "shutdown",
+        "restart",
+        "open_chrome",
+        "open_OBS",
+        "open_notepad",
+        "bluetooth_on",
+        "wifi_hotspot",
+        "screen_on",
+        "screen_off"
+    ]
 
     if cmd not in ALLOWED_COMMANDS:
         return {"status": "error", "message": "Commande interdite"}
@@ -139,34 +149,40 @@ def get_command():
 @app.route("/chat", methods=["POST"])
 def chat():
     if not check_token(request):
-        return {"status": "error", "message": "Unauthorized"}, 403
+        return {"status": "error"}, 403
 
     data = request.get_json(silent=True) or {}
     message = data.get("message", "").lower()
 
-    # 🔥 COMMANDES
-    if "ouvre chrome" in message or "open chrome" in message:
-        return {"status": "ok", "type": "command", "command": "open_chrome"}
+    # ===== COMMANDES =====
+    if "ouvre chrome" in message:
+        command_store["command"] = "open_chrome"
+        return {"type": "command"}
 
-    if "redémarre" in message or "restart pc" in message:
-        return {"status": "ok", "type": "command", "command": "restart"}
+    if "open obs" in message:
+        command_store["command"] = "open_OBS"
+        return {"type": "command"}
 
-    if "redémarre" in message or "open OBS" in message:
-        return {"status": "ok", "type": "command", "command": "open_OBS"}
+    if "redémarre" in message:
+        command_store["command"] = "restart"
+        return {"type": "command"}
 
-    if "éteins" in message or "shutdown" in message:
-        return {"status": "ok", "type": "command", "command": "shutdown"}
+    if "éteins" in message:
+        command_store["command"] = "shutdown"
+        return {"type": "command"}
 
     if "écran" in message:
+        command_store["command"] = "screen_on"
         return {"type": "screen", "action": "start"}
 
     if "ferme l'écran" in message:
+        command_store["command"] = "screen_off"
         return {"type": "screen", "action": "stop"}
 
-    # 🔥 ENVOYER QUESTION À L'AGENT (OLLAMA)
+    # ===== IA =====
     question_store["question"] = message
 
-    return {"status": "ok", "type": "processing"}
+    return {"type": "processing"}
 
 # =========================
 # 🔥 RUN
